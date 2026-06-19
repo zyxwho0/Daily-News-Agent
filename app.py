@@ -441,7 +441,7 @@ def refresh_news() -> dict:
             seen.add(key)
             unique.append(article)
 
-    curated = unique[:80]
+    curated = unique[:30]
     summarized_articles = 0
     failed_summary_batches = 0
     if OPENAI_API_KEY:
