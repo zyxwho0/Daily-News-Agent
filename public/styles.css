@@ -33,7 +33,7 @@ button { font: inherit; }
 }
 
 .brand { display: inline-flex; align-items: center; gap: 11px; width: fit-content; text-decoration: none; font-size: 20px; font-weight: 700; letter-spacing: -.04em; }
-.brand-mark { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: var(--green); color: var(--acid); font: 500 16px "DM Mono", monospace; }
+.brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--green); color: var(--acid); font: 500 12px "DM Mono", monospace; letter-spacing: -.05em; }
 .top-nav { display: flex; gap: 34px; }
 .top-nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
 .top-nav a:hover { color: var(--ink); }
