@@ -2,7 +2,7 @@
 
 YZ News combines trusted RSS feeds with Brave News Search, deduplicates and
 categorizes the coverage, and uses OpenAI to write the daily briefing displayed
-at the top of the site.
+at the top of the site and concise summaries beneath every story title.
 
 ## Run it
 

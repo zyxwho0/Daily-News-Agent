@@ -31,6 +31,7 @@ function renderLead(articles) {
     <a class="secondary-story" href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer">
       ${meta(article)}
       <h3>${escapeHtml(article.title)}</h3>
+      <p>${escapeHtml(article.summary)}</p>
     </a>`).join("");
   $("#leadGrid").innerHTML = `
     <a class="lead-story" href="${escapeHtml(lead.url)}" target="_blank" rel="noopener noreferrer">
@@ -150,7 +151,10 @@ function render(data) {
   `).join("");
   $("#storyCount").textContent = `${data.articles.length} stories reviewed`;
   $("#updatedAt").textContent = `${data.stale ? "Cached" : "Updated"} ${relativeTime(data.generated_at)}`;
-  $("#sourceNote").textContent = `Reporting from ${data.sources.join(", ")}.`;
+  const summaryNote = data.articles_summarized
+    ? ` AI summaries generated for ${data.articles_summarized} stories.`
+    : "";
+  $("#sourceNote").textContent = `Reporting from ${data.sources.join(", ")}.${summaryNote}`;
   renderTopics();
   renderFilters();
   renderStories();
