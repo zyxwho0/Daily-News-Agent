@@ -60,7 +60,13 @@ function renderRows(articles) {
     row.querySelector(".story-copy > p").textContent = article.summary;
     list.appendChild(row);
   });
-  $("#loadMore").hidden = state.visible >= articles.length;
+  const loadMore = $("#loadMore");
+  const hasMore = state.visible < articles.length;
+  loadMore.hidden = articles.length <= 3;
+  loadMore.disabled = !hasMore;
+  loadMore.innerHTML = hasMore
+    ? `Show more stories <span>↓</span>`
+    : `No more stories <span>✓</span>`;
 }
 
 function filteredArticles() {

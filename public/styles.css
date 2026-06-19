@@ -92,6 +92,7 @@ h2 { margin: 9px 0 0; font: 500 clamp(36px, 5vw, 62px)/1 Newsreader, serif; lett
 .story-arrow { align-self: center; color: var(--muted); }
 .load-more { display: block; margin: 36px auto 0; padding: 12px 18px; border: 1px solid var(--line); border-radius: 99px; background: transparent; cursor: pointer; }
 .load-more:hover { background: var(--green); color: white; }
+.load-more:disabled { color: var(--muted); border-style: dashed; background: transparent; cursor: default; opacity: .75; }
 .load-more span { margin-left: 8px; }
 
 .topics-section { display: grid; grid-template-columns: .8fr 1.2fr; align-items: center; gap: 80px; padding: 100px 0; border-top: 1px solid var(--line); }
