@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -26,6 +27,9 @@ CACHE_FILE = DATA_DIR / "news.json"
 PUBLIC_DIR = ROOT / "public"
 PUBLIC_DATA_FILE = PUBLIC_DIR / "data" / "news.json"
 REFRESH_SECONDS = int(os.getenv("NEWS_REFRESH_SECONDS", "1800"))
+BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 
 FEEDS = [
     ("BBC", "World", "https://feeds.bbci.co.uk/news/world/rss.xml"),
@@ -35,6 +39,14 @@ FEEDS = [
     ("The Guardian", "Business", "https://www.theguardian.com/business/rss"),
     ("Ars Technica", "Technology", "https://feeds.arstechnica.com/arstechnica/index"),
     ("NASA", "Science", "https://www.nasa.gov/news-release/feed/"),
+]
+
+BRAVE_SEARCHES = [
+    ("World", "top world news today"),
+    ("U.S.", "top United States news today"),
+    ("Business", "top business economy markets news today"),
+    ("Technology", "top technology artificial intelligence news today"),
+    ("Science", "top science climate space health research news today"),
 ]
 
 STOPWORDS = {
@@ -132,7 +144,59 @@ def fetch_feed(source: str, category: str, url: str) -> list[dict]:
     return articles
 
 
-def make_briefing(articles: list[dict]) -> str:
+def publisher_from_url(url: str) -> str:
+    hostname = urlparse(url).hostname or "Web"
+    hostname = hostname.removeprefix("www.")
+    parts = hostname.split(".")
+    name = parts[-2] if len(parts) > 1 else parts[0]
+    return name.replace("-", " ").title()
+
+
+def fetch_brave_news(category: str, query: str) -> list[dict]:
+    if not BRAVE_API_KEY:
+        return []
+    params = urllib.parse.urlencode({
+        "q": query,
+        "freshness": "pd",
+        "count": 12,
+        "country": "US",
+        "search_lang": "en",
+        "safesearch": "moderate",
+    })
+    request = urllib.request.Request(
+        f"https://api.search.brave.com/res/v1/news/search?{params}",
+        headers={
+            "Accept": "application/json",
+            "X-Subscription-Token": BRAVE_API_KEY,
+            "User-Agent": "YZNewsAgent/1.0",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        payload = json.load(response)
+
+    articles = []
+    for item in payload.get("results", []):
+        url = item.get("url", "")
+        title = clean_text(item.get("title"))
+        if not title or not url:
+            continue
+        source = clean_text((item.get("profile") or {}).get("long_name"))
+        thumbnail = item.get("thumbnail") or {}
+        articles.append({
+            "id": str(abs(hash(url))),
+            "title": title,
+            "summary": clean_text(item.get("description"))[:280],
+            "url": url,
+            "source": source or publisher_from_url(url),
+            "category": category,
+            "published_at": parse_date(item.get("page_age") or item.get("age")),
+            "image": thumbnail.get("src", "") if isinstance(thumbnail, dict) else "",
+            "discovered_by": "Brave Search",
+        })
+    return articles
+
+
+def fallback_briefing(articles: list[dict]) -> str:
     if not articles:
         return "No fresh stories are available yet. Try refreshing in a moment."
     categories = Counter(article["category"] for article in articles)
@@ -140,9 +204,66 @@ def make_briefing(articles: list[dict]) -> str:
     top = articles[0]["title"].rstrip(".")
     return (
         f"Today’s coverage is led by {leaders}. The developing headline: {top}. "
-        f"Pulse reviewed {len(articles)} recent stories across "
+        f"YZ News reviewed {len(articles)} recent stories across "
         f"{len(set(a['source'] for a in articles))} publishers."
     )
+
+
+def extract_response_text(payload: dict) -> str:
+    if isinstance(payload.get("output_text"), str):
+        return payload["output_text"].strip()
+    chunks = []
+    for item in payload.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text" and content.get("text"):
+                chunks.append(content["text"])
+    return "\n".join(chunks).strip()
+
+
+def create_ai_briefing(articles: list[dict]) -> str:
+    if not OPENAI_API_KEY or not articles:
+        return ""
+    headlines = [
+        {
+            "title": article["title"],
+            "source": article["source"],
+            "category": article["category"],
+            "summary": article["summary"][:180],
+        }
+        for article in articles[:35]
+    ]
+    body = {
+        "model": OPENAI_MODEL,
+        "instructions": (
+            "You are the editor of YZ News. Write a clear, neutral daily news "
+            "briefing of 120–160 words for a general U.S. audience. Lead with the "
+            "most consequential development, then connect 3–5 other major themes. "
+            "Use only facts present in the supplied article data. Attribute disputed "
+            "or source-specific claims. Do not use markdown, bullets, a headline, "
+            "citations, or phrases such as 'according to the provided articles'. "
+            "Avoid hype and do not mention how many stories were reviewed."
+        ),
+        "input": json.dumps(headlines, ensure_ascii=False),
+        "reasoning": {"effort": "low"},
+        "text": {"verbosity": "low"},
+    }
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(body).encode(),
+        headers={
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+            "User-Agent": "YZNewsAgent/1.0",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=45) as response:
+        briefing = extract_response_text(json.load(response))
+    if not 300 <= len(briefing) <= 1600:
+        raise ValueError("OpenAI briefing had an unexpected length")
+    return briefing
 
 
 def extract_topics(articles: list[dict]) -> list[dict]:
@@ -166,6 +287,13 @@ def refresh_news() -> dict:
         except (OSError, ET.ParseError, urllib.error.URLError) as exc:
             errors.append(f"{source} {category}: {type(exc).__name__}")
 
+    if BRAVE_API_KEY:
+        for category, query in BRAVE_SEARCHES:
+            try:
+                all_articles.extend(fetch_brave_news(category, query))
+            except (OSError, ValueError, urllib.error.URLError) as exc:
+                errors.append(f"Brave {category}: {type(exc).__name__}")
+
     seen: set[str] = set()
     unique = []
     for article in sorted(all_articles, key=lambda item: item["published_at"], reverse=True):
@@ -174,10 +302,22 @@ def refresh_news() -> dict:
             seen.add(key)
             unique.append(article)
 
-    curated = unique[:70]
+    curated = unique[:80]
+    briefing = fallback_briefing(curated)
+    briefing_generated_by = "fallback"
+    if OPENAI_API_KEY:
+        try:
+            ai_briefing = create_ai_briefing(curated)
+            if ai_briefing:
+                briefing = ai_briefing
+                briefing_generated_by = OPENAI_MODEL
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            errors.append(f"OpenAI briefing: {type(exc).__name__}")
+
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "briefing": make_briefing(curated),
+        "briefing": briefing,
+        "briefing_generated_by": briefing_generated_by,
         "topics": extract_topics(curated),
         "articles": curated,
         "sources": sorted(set(article["source"] for article in curated)),

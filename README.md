@@ -1,6 +1,8 @@
-# Pulse — Daily News Agent
+# YZ News — Daily News Agent
 
-Pulse collects recent reporting from multiple RSS feeds, deduplicates and categorizes it, creates a short daily briefing, and presents everything in a responsive web dashboard.
+YZ News combines trusted RSS feeds with Brave News Search, deduplicates and
+categorizes the coverage, and uses OpenAI to write the daily briefing displayed
+at the top of the site.
 
 ## Run it
 
@@ -24,8 +26,15 @@ python3 app.py --refresh
 
 - `PORT`: web server port (default `8000`)
 - `NEWS_REFRESH_SECONDS`: cache lifetime (default `1800`, or 30 minutes)
+- `BRAVE_API_KEY`: optional Brave Search API key for broader news discovery
+- `OPENAI_API_KEY`: optional OpenAI API key for the generated daily briefing
+- `OPENAI_MODEL`: optional model override (default `gpt-5.4-mini`)
 
 Feed sources are configured in `FEEDS` near the top of `app.py`. The service keeps the last successful response in `data/news.json`, so the dashboard can continue using its cache during a temporary feed outage.
+
+When either API key is unavailable or an API request fails, the agent continues
+with RSS and a deterministic fallback briefing. For GitHub Pages, store the two
+keys as repository Actions secrets named `BRAVE_API_KEY` and `OPENAI_API_KEY`.
 
 ## Endpoints
 

@@ -30,6 +30,9 @@ jobs:
 
       - name: Collect the latest news
         run: python app.py --refresh
+        env:
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
