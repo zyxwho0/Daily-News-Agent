@@ -95,7 +95,15 @@ function render(data) {
   $("#todayLabel").textContent = generated.toLocaleDateString(undefined, {
     weekday: "long", month: "long", day: "numeric"
   });
-  $("#briefingText").textContent = data.briefing;
+  const briefingItems = data.briefing_items?.length
+    ? data.briefing_items
+    : [{ headline: "Today’s briefing", summary: data.briefing }];
+  $("#briefingList").innerHTML = briefingItems.map(item => `
+    <li>
+      <strong>${escapeHtml(item.headline)}</strong>
+      <span>${escapeHtml(item.summary)}</span>
+    </li>
+  `).join("");
   $("#storyCount").textContent = `${data.articles.length} stories reviewed`;
   $("#updatedAt").textContent = `${data.stale ? "Cached" : "Updated"} ${relativeTime(data.generated_at)}`;
   $("#sourceNote").textContent = `Reporting from ${data.sources.join(", ")}.`;

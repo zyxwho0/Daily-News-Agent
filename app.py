@@ -196,17 +196,36 @@ def fetch_brave_news(category: str, query: str) -> list[dict]:
     return articles
 
 
-def fallback_briefing(articles: list[dict]) -> str:
+def fallback_briefing_items(articles: list[dict]) -> list[dict]:
     if not articles:
-        return "No fresh stories are available yet. Try refreshing in a moment."
-    categories = Counter(article["category"] for article in articles)
-    leaders = ", ".join(name.lower() for name, _ in categories.most_common(3))
-    top = articles[0]["title"].rstrip(".")
-    return (
-        f"Today’s coverage is led by {leaders}. The developing headline: {top}. "
-        f"YZ News reviewed {len(articles)} recent stories across "
-        f"{len(set(a['source'] for a in articles))} publishers."
-    )
+        return [{
+            "headline": "No fresh stories are available yet",
+            "summary": "Try refreshing the edition again in a moment.",
+        }]
+    selected = []
+    used_categories = set()
+    for article in articles:
+        if article["category"] not in used_categories:
+            selected.append(article)
+            used_categories.add(article["category"])
+        if len(selected) == 5:
+            break
+    for article in articles:
+        if len(selected) == 5:
+            break
+        if article not in selected:
+            selected.append(article)
+    return [
+        {
+            "headline": article["title"],
+            "summary": (
+                article["summary"][:197].rsplit(" ", 1)[0] + "…"
+                if len(article["summary"]) > 200
+                else article["summary"]
+            ) or f"Latest reporting from {article['source']}.",
+        }
+        for article in selected
+    ]
 
 
 def extract_response_text(payload: dict) -> str:
@@ -222,7 +241,7 @@ def extract_response_text(payload: dict) -> str:
     return "\n".join(chunks).strip()
 
 
-def create_ai_briefing(articles: list[dict]) -> str:
+def create_ai_briefing(articles: list[dict]) -> list[dict]:
     if not OPENAI_API_KEY or not articles:
         return ""
     headlines = [
@@ -237,17 +256,44 @@ def create_ai_briefing(articles: list[dict]) -> str:
     body = {
         "model": OPENAI_MODEL,
         "instructions": (
-            "You are the editor of YZ News. Write a clear, neutral daily news "
-            "briefing of 120–160 words for a general U.S. audience. Lead with the "
-            "most consequential development, then connect 3–5 other major themes. "
-            "Use only facts present in the supplied article data. Attribute disputed "
-            "or source-specific claims. Do not use markdown, bullets, a headline, "
-            "citations, or phrases such as 'according to the provided articles'. "
-            "Avoid hype and do not mention how many stories were reviewed."
+            "You are the editor of YZ News. Select the five most consequential and "
+            "distinct developments for a general U.S. audience. For each, write a "
+            "specific headline of at most 12 words and a neutral explanation of "
+            "20–35 words. Use only facts present in the supplied article data. "
+            "Attribute disputed or source-specific claims. Avoid hype, repetition, "
+            "editorial opinion, and references to the input or number of stories."
         ),
         "input": json.dumps(headlines, ensure_ascii=False),
         "reasoning": {"effort": "low"},
-        "text": {"verbosity": "low"},
+        "text": {
+            "verbosity": "low",
+            "format": {
+                "type": "json_schema",
+                "name": "daily_briefing",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "minItems": 5,
+                            "maxItems": 5,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "headline": {"type": "string"},
+                                    "summary": {"type": "string"},
+                                },
+                                "required": ["headline", "summary"],
+                                "additionalProperties": False,
+                            },
+                        }
+                    },
+                    "required": ["items"],
+                    "additionalProperties": False,
+                },
+            },
+        },
     }
     request = urllib.request.Request(
         "https://api.openai.com/v1/responses",
@@ -260,10 +306,11 @@ def create_ai_briefing(articles: list[dict]) -> str:
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=45) as response:
-        briefing = extract_response_text(json.load(response))
-    if not 300 <= len(briefing) <= 1600:
-        raise ValueError("OpenAI briefing had an unexpected length")
-    return briefing
+        text = extract_response_text(json.load(response))
+    items = json.loads(text).get("items", [])
+    if len(items) != 5 or any(not item.get("headline") or not item.get("summary") for item in items):
+        raise ValueError("OpenAI briefing had an unexpected structure")
+    return items
 
 
 def extract_topics(articles: list[dict]) -> list[dict]:
@@ -303,20 +350,23 @@ def refresh_news() -> dict:
             unique.append(article)
 
     curated = unique[:80]
-    briefing = fallback_briefing(curated)
+    briefing_items = fallback_briefing_items(curated)
     briefing_generated_by = "fallback"
     if OPENAI_API_KEY:
         try:
-            ai_briefing = create_ai_briefing(curated)
-            if ai_briefing:
-                briefing = ai_briefing
+            ai_briefing_items = create_ai_briefing(curated)
+            if ai_briefing_items:
+                briefing_items = ai_briefing_items
                 briefing_generated_by = OPENAI_MODEL
         except (OSError, ValueError, urllib.error.URLError) as exc:
             errors.append(f"OpenAI briefing: {type(exc).__name__}")
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "briefing": briefing,
+        "briefing": " ".join(
+            f"{item['headline']}: {item['summary']}" for item in briefing_items
+        ),
+        "briefing_items": briefing_items,
         "briefing_generated_by": briefing_generated_by,
         "topics": extract_topics(curated),
         "articles": curated,
