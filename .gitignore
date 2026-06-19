@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.DS_Store
+data/news.json
+public/data/news.json

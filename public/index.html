@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e8">
+  <meta name="description" content="Pulse is a calm, intelligent daily briefing on the stories that matter.">
+  <link rel="canonical" href="https://news.yuxianzhang.com/">
+  <meta property="og:title" content="Pulse — Your daily briefing">
+  <meta property="og:description" content="The world, distilled. A calm read on what matters today.">
+  <meta property="og:url" content="https://news.yuxianzhang.com/">
+  <meta property="og:type" content="website">
+  <title>Pulse — Your daily briefing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Pulse home">
+      <span class="brand-mark">P</span><span>Pulse</span>
+    </a>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#briefing">Briefing</a>
+      <a href="#stories">Stories</a>
+      <a href="#topics">Topics</a>
+    </nav>
+    <button class="refresh-button" id="refreshButton" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
+      Refresh
+    </button>
+  </header>
+
+  <main>
+    <section class="hero" id="briefing">
+      <div class="edition-line">
+        <span id="todayLabel">Today’s edition</span>
+        <span class="live-dot"><i></i> Live briefing</span>
+      </div>
+      <h1>The world, distilled.</h1>
+      <p class="dek">A calm, intelligent read on what matters today — gathered across trusted sources and refreshed throughout the day.</p>
+      <div class="brief-card">
+        <div class="brief-label"><span>01</span> The daily brief</div>
+        <p id="briefingText">Gathering today’s most important stories…</p>
+        <div class="brief-meta">
+          <span id="storyCount">— stories reviewed</span>
+          <span id="updatedAt">Updating now</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="story-section" id="stories">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">The latest</span>
+          <h2>Stories worth your time</h2>
+        </div>
+        <div class="filters" id="filters" aria-label="Filter by category"></div>
+      </div>
+      <div class="lead-grid" id="leadGrid">
+        <div class="skeleton lead-skeleton"></div>
+        <div class="skeleton side-skeleton"></div>
+      </div>
+      <div class="story-list" id="storyList"></div>
+      <button class="load-more" id="loadMore" type="button" hidden>Show more stories <span>↓</span></button>
+    </section>
+
+    <section class="topics-section" id="topics">
+      <div>
+        <span class="eyebrow">Signals</span>
+        <h2>What the day is talking about</h2>
+      </div>
+      <div class="topic-cloud" id="topicCloud"></div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand footer-brand" href="/"><span class="brand-mark">P</span><span>Pulse</span></a>
+    <p>Perspective without the noise.</p>
+    <p class="source-note" id="sourceNote">Reporting belongs to its original publishers.</p>
+  </footer>
+
+  <template id="storyRowTemplate">
+    <article class="story-row">
+      <div class="story-number"></div>
+      <div class="story-copy">
+        <div class="story-meta"><span class="category"></span><span class="source"></span><span class="time"></span></div>
+        <h3><a target="_blank" rel="noopener noreferrer"></a></h3>
+        <p></p>
+      </div>
+      <div class="story-arrow">↗</div>
+    </article>
+  </template>
+  <script src="/app.js" defer></script>
+</body>
+</html>
