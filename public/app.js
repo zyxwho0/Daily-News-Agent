@@ -1,4 +1,4 @@
-const state = { data: null, category: "All", visible: 10 };
+const state = { data: null, category: "All", topic: null, visible: 10 };
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => {
@@ -63,13 +63,19 @@ function renderRows(articles) {
 }
 
 function filteredArticles() {
-  return state.category === "All"
-    ? state.data.articles
-    : state.data.articles.filter(article => article.category === state.category);
+  return state.data.articles.filter(article => {
+    const categoryMatches = state.category === "All" || article.category === state.category;
+    const text = `${article.title} ${article.summary}`.toLowerCase();
+    const topicMatches = !state.topic || text.includes(state.topic.toLowerCase());
+    return categoryMatches && topicMatches;
+  });
 }
 
 function renderStories() {
   const articles = filteredArticles();
+  const activeTopic = $("#activeTopic");
+  activeTopic.hidden = !state.topic;
+  activeTopic.textContent = state.topic ? `Showing “${state.topic}” ×` : "";
   renderLead(articles);
   renderRows(articles);
 }
@@ -79,14 +85,27 @@ function renderFilters() {
   $("#filters").innerHTML = categories.map(category =>
     `<button class="filter ${category === state.category ? "active" : ""}" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`
   ).join("");
-  $("#filters").addEventListener("click", event => {
-    const button = event.target.closest(".filter");
-    if (!button) return;
-    state.category = button.dataset.category;
-    state.visible = 10;
-    renderFilters();
-    renderStories();
-  }, { once: true });
+}
+
+function renderTopics() {
+  const topics = state.data.topics.length ? state.data.topics : [
+    { name: "World", count: 1 },
+    { name: "Business", count: 1 },
+    { name: "Technology", count: 1 }
+  ];
+  const maxCount = Math.max(...topics.map(topic => Number(topic.count) || 1));
+  $("#topicChart").innerHTML = topics.map((topic, index) => {
+    const width = Math.max(14, ((Number(topic.count) || 1) / maxCount) * 100);
+    const active = state.topic === topic.name;
+    return `
+      <button class="topic-bar ${active ? "active" : ""}" type="button"
+        data-topic="${escapeHtml(topic.name)}" aria-pressed="${active}">
+        <span class="topic-rank">${String(index + 1).padStart(2, "0")}</span>
+        <span class="topic-name">${escapeHtml(topic.name)}</span>
+        <span class="topic-track"><i style="width:${width}%"></i></span>
+        <span class="topic-count">${topic.count} ${topic.count === 1 ? "mention" : "mentions"}</span>
+      </button>`;
+  }).join("");
 }
 
 function render(data) {
@@ -107,9 +126,7 @@ function render(data) {
   $("#storyCount").textContent = `${data.articles.length} stories reviewed`;
   $("#updatedAt").textContent = `${data.stale ? "Cached" : "Updated"} ${relativeTime(data.generated_at)}`;
   $("#sourceNote").textContent = `Reporting from ${data.sources.join(", ")}.`;
-  $("#topicCloud").innerHTML = (data.topics.length ? data.topics : [
-    { name: "World", count: "—" }, { name: "Business", count: "—" }, { name: "Technology", count: "—" }
-  ]).map(topic => `<span class="topic">${escapeHtml(topic.name)} <sup>${topic.count}</sup></span>`).join("");
+  renderTopics();
   renderFilters();
   renderStories();
 }
@@ -139,5 +156,32 @@ $("#refreshButton").addEventListener("click", () => loadNews(true));
 $("#loadMore").addEventListener("click", () => {
   state.visible += 10;
   renderRows(filteredArticles());
+});
+$("#filters").addEventListener("click", event => {
+  const button = event.target.closest(".filter");
+  if (!button) return;
+  state.category = button.dataset.category;
+  state.topic = null;
+  state.visible = 10;
+  renderFilters();
+  renderTopics();
+  renderStories();
+});
+$("#topicChart").addEventListener("click", event => {
+  const button = event.target.closest(".topic-bar");
+  if (!button) return;
+  state.topic = state.topic === button.dataset.topic ? null : button.dataset.topic;
+  state.category = "All";
+  state.visible = 10;
+  renderTopics();
+  renderFilters();
+  renderStories();
+  $("#stories").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("#activeTopic").addEventListener("click", () => {
+  state.topic = null;
+  state.visible = 10;
+  renderTopics();
+  renderStories();
 });
 loadNews();

@@ -57,6 +57,7 @@
         <div>
           <span class="eyebrow">The latest</span>
           <h2>Stories worth your time</h2>
+          <button class="active-topic" id="activeTopic" type="button" hidden></button>
         </div>
         <div class="filters" id="filters" aria-label="Filter by category"></div>
       </div>
@@ -72,8 +73,9 @@
       <div>
         <span class="eyebrow">Signals</span>
         <h2>What the day is talking about</h2>
+        <p class="topics-note">Story mentions across today’s coverage. Select a signal to explore its reporting.</p>
       </div>
-      <div class="topic-cloud" id="topicCloud"></div>
+      <div class="topic-chart" id="topicChart" aria-label="Trending topic chart"></div>
     </section>
   </main>
 
