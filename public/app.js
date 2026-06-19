@@ -93,19 +93,44 @@ function renderTopics() {
     { name: "Business", count: 1 },
     { name: "Technology", count: 1 }
   ];
-  const maxCount = Math.max(...topics.map(topic => Number(topic.count) || 1));
-  $("#topicChart").innerHTML = topics.map((topic, index) => {
-    const width = Math.max(14, ((Number(topic.count) || 1) / maxCount) * 100);
+  const colors = ["#173d2a", "#547a49", "#93a94b", "#c2d45b", "#78927c", "#a8b7a8", "#56665d", "#d8dfc0"];
+  const total = topics.reduce((sum, topic) => sum + (Number(topic.count) || 1), 0);
+  let cursor = 0;
+  const segments = topics.map((topic, index) => {
+    const start = cursor;
+    cursor += ((Number(topic.count) || 1) / total) * 360;
+    return `${colors[index % colors.length]} ${start}deg ${cursor}deg`;
+  });
+  const activeTopic = topics.find(topic => topic.name === state.topic);
+  const centerLabel = activeTopic
+    ? `<strong>${escapeHtml(activeTopic.name)}</strong><span>${activeTopic.count} mentions</span>`
+    : `<strong>${total}</strong><span>topic mentions</span>`;
+  const legend = topics.map((topic, index) => {
     const active = state.topic === topic.name;
     return `
-      <button class="topic-bar ${active ? "active" : ""}" type="button"
+      <button class="topic-legend-row ${active ? "active" : ""}" type="button"
         data-topic="${escapeHtml(topic.name)}" aria-pressed="${active}">
-        <span class="topic-rank">${String(index + 1).padStart(2, "0")}</span>
+        <i style="--topic-color:${colors[index % colors.length]}"></i>
         <span class="topic-name">${escapeHtml(topic.name)}</span>
-        <span class="topic-track"><i style="width:${width}%"></i></span>
-        <span class="topic-count">${topic.count} ${topic.count === 1 ? "mention" : "mentions"}</span>
+        <span class="topic-count">${topic.count}</span>
       </button>`;
   }).join("");
+  $("#topicChart").innerHTML = `
+    <div class="donut-wrap">
+      <div class="topic-donut" style="--donut:${segments.join(",")}">
+        <div class="donut-center">${centerLabel}</div>
+        ${topics.map((topic, index) => {
+          const midpoint = topics.slice(0, index).reduce(
+            (sum, item) => sum + ((Number(item.count) || 1) / total) * 360, 0
+          ) + (((Number(topic.count) || 1) / total) * 180);
+          return `<button class="donut-hit" type="button"
+            data-topic="${escapeHtml(topic.name)}"
+            aria-label="${escapeHtml(topic.name)}, ${topic.count} mentions"
+            style="--angle:${midpoint}deg"></button>`;
+        }).join("")}
+      </div>
+    </div>
+    <div class="topic-legend">${legend}</div>`;
 }
 
 function render(data) {
@@ -168,7 +193,7 @@ $("#filters").addEventListener("click", event => {
   renderStories();
 });
 $("#topicChart").addEventListener("click", event => {
-  const button = event.target.closest(".topic-bar");
+  const button = event.target.closest("[data-topic]");
   if (!button) return;
   state.topic = state.topic === button.dataset.topic ? null : button.dataset.topic;
   state.category = "All";
