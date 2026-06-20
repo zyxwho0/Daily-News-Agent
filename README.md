@@ -51,7 +51,7 @@ The workflow in `.github/workflows/pages.yml` collects fresh news and deploys
 `public/` to GitHub Pages:
 
 - after every push to `master`
-- every day at 11:15 UTC
+- every day at 7:15 AM EDT / 6:15 AM EST (11:15 UTC)
 - whenever it is started manually
 
 In the repository's **Settings → Pages**, select **GitHub Actions** as the
