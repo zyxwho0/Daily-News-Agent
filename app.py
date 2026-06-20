@@ -58,18 +58,21 @@ STOPWORDS = {
 
 
 def clean_text(value: str | None) -> str:
+    """Convert HTML-rich feed text into clean, single-spaced plain text."""
     value = html.unescape(value or "")
     value = re.sub(r"<[^>]+>", " ", value)
     return re.sub(r"\s+", " ", value).strip()
 
 
 def parse_date(value: str | None) -> str:
+    """Normalize RSS, Atom, and ISO date strings into UTC ISO-8601 format."""
     if not value:
         return datetime.now(timezone.utc).isoformat()
     try:
         dt = parsedate_to_datetime(value)
     except (TypeError, ValueError):
         try:
+            # Atom and API results commonly use ISO-8601 instead of RSS dates.
             dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
             dt = datetime.now(timezone.utc)
@@ -79,7 +82,9 @@ def parse_date(value: str | None) -> str:
 
 
 def child_text(node: ET.Element, names: tuple[str, ...]) -> str:
+    """Find the first matching child tag while ignoring XML namespaces."""
     for child in node.iter():
+        # RSS namespaces produce tags such as "{namespace}description".
         tag = child.tag.rsplit("}", 1)[-1]
         if tag in names and child.text:
             return child.text
@@ -87,6 +92,7 @@ def child_text(node: ET.Element, names: tuple[str, ...]) -> str:
 
 
 def entry_link(node: ET.Element) -> str:
+    """Extract an article URL from either RSS text or an Atom href attribute."""
     direct = child_text(node, ("link",))
     if direct.startswith("http"):
         return direct
@@ -99,6 +105,7 @@ def entry_link(node: ET.Element) -> str:
 
 
 def image_url(node: ET.Element, description: str) -> str:
+    """Find an article image in media tags or an embedded description image."""
     for child in node.iter():
         tag = child.tag.rsplit("}", 1)[-1]
         url = child.attrib.get("url", "")
@@ -106,17 +113,20 @@ def image_url(node: ET.Element, description: str) -> str:
         mime = child.attrib.get("type", "")
         if url and (tag in {"thumbnail", "content"} or medium == "image" or mime.startswith("image/")):
             return url
+    # Some publishers expose images only inside the HTML description.
     match = re.search(r'<img[^>]+src=["\']([^"\']+)', description or "", re.I)
     return match.group(1) if match else ""
 
 
 def fetch_feed(source: str, category: str, url: str) -> list[dict]:
+    """Download one RSS/Atom feed and convert its entries into article records."""
     request = urllib.request.Request(
         url,
         headers={"User-Agent": "PulseNewsAgent/1.0 (+local news dashboard)"},
     )
     with urllib.request.urlopen(request, timeout=12) as response:
         root = ET.fromstring(response.read())
+    # Supporting both item and entry lets the same parser handle RSS and Atom.
     nodes = [
         node for node in root.iter()
         if node.tag.rsplit("}", 1)[-1] in {"item", "entry"}
@@ -145,6 +155,7 @@ def fetch_feed(source: str, category: str, url: str) -> list[dict]:
 
 
 def publisher_from_url(url: str) -> str:
+    """Create a readable publisher name from a result URL's domain."""
     hostname = urlparse(url).hostname or "Web"
     hostname = hostname.removeprefix("www.")
     parts = hostname.split(".")
@@ -153,7 +164,9 @@ def publisher_from_url(url: str) -> str:
 
 
 def fetch_brave_news(category: str, query: str) -> list[dict]:
+    """Search Brave for recent news and normalize the results as articles."""
     if not BRAVE_API_KEY:
+        # Brave is optional; RSS remains the zero-configuration backbone.
         return []
     params = urllib.parse.urlencode({
         "q": query,
@@ -197,6 +210,7 @@ def fetch_brave_news(category: str, query: str) -> list[dict]:
 
 
 def fallback_briefing_items(articles: list[dict]) -> list[dict]:
+    """Build a diverse five-story briefing when OpenAI is unavailable."""
     if not articles:
         return [{
             "headline": "No fresh stories are available yet",
@@ -204,6 +218,7 @@ def fallback_briefing_items(articles: list[dict]) -> list[dict]:
         }]
     selected = []
     used_categories = set()
+    # First choose one story per category to avoid a one-topic briefing.
     for article in articles:
         if article["category"] not in used_categories:
             selected.append(article)
@@ -229,8 +244,10 @@ def fallback_briefing_items(articles: list[dict]) -> list[dict]:
 
 
 def extract_response_text(payload: dict) -> str:
+    """Read generated text from the possible OpenAI Responses API shapes."""
     if isinstance(payload.get("output_text"), str):
         return payload["output_text"].strip()
+    # Raw API responses place text inside message content blocks.
     chunks = []
     for item in payload.get("output", []):
         if item.get("type") != "message":
@@ -242,8 +259,10 @@ def extract_response_text(payload: dict) -> str:
 
 
 def create_ai_briefing(articles: list[dict]) -> list[dict]:
+    """Ask OpenAI to select and explain the five most consequential stories."""
     if not OPENAI_API_KEY or not articles:
         return ""
+    # Limit context to control cost while retaining enough breadth for selection.
     headlines = [
         {
             "title": article["title"],
@@ -253,6 +272,7 @@ def create_ai_briefing(articles: list[dict]) -> list[dict]:
         }
         for article in articles[:35]
     ]
+    # Strict JSON output makes the frontend contract predictable.
     body = {
         "model": OPENAI_MODEL,
         "instructions": (
@@ -314,11 +334,13 @@ def create_ai_briefing(articles: list[dict]) -> list[dict]:
 
 
 def create_ai_article_summaries(articles: list[dict]) -> tuple[int, int]:
+    """Rewrite publisher excerpts into concise summaries in cost-efficient batches."""
     if not OPENAI_API_KEY or not articles:
         return 0, 0
 
     updated = 0
     failed_batches = 0
+    # Twenty stories per request balances API cost, latency, and schema size.
     for start in range(0, len(articles), 20):
         batch = articles[start:start + 20]
         source_items = [
@@ -389,6 +411,7 @@ def create_ai_article_summaries(articles: list[dict]) -> tuple[int, int]:
                 text = extract_response_text(json.load(response))
             returned = json.loads(text).get("items", [])
         except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError):
+            # Preserve original publisher excerpts when an individual batch fails.
             failed_batches += 1
             continue
         summaries = {
@@ -406,9 +429,12 @@ def create_ai_article_summaries(articles: list[dict]) -> tuple[int, int]:
 
 
 def extract_topics(articles: list[dict]) -> list[dict]:
+    """Count meaningful headline terms for the interactive topic chart."""
     words = Counter()
+    # Use leading stories so stale tail content does not dominate topic signals.
     for article in articles[:40]:
         tokens = re.findall(r"[A-Za-z][A-Za-z'-]{3,}", article["title"])
+        # Stop words remove frequent terms that carry little topical meaning.
         words.update(word.lower() for word in tokens if word.lower() not in STOPWORDS)
     return [
         {"name": word.title(), "count": count}
@@ -418,6 +444,7 @@ def extract_topics(articles: list[dict]) -> list[dict]:
 
 
 def refresh_news() -> dict:
+    """Run the full agent pipeline and write a deployable daily-news snapshot."""
     all_articles: list[dict] = []
     errors = []
     for source, category, url in FEEDS:
@@ -427,6 +454,7 @@ def refresh_news() -> dict:
             errors.append(f"{source} {category}: {type(exc).__name__}")
 
     if BRAVE_API_KEY:
+        # Brave expands source diversity and discovers stories outside fixed feeds.
         for category, query in BRAVE_SEARCHES:
             try:
                 all_articles.extend(fetch_brave_news(category, query))
@@ -435,16 +463,20 @@ def refresh_news() -> dict:
 
     seen: set[str] = set()
     unique = []
+    # Newest-first sorting is the base ranking used by the full story feed.
     for article in sorted(all_articles, key=lambda item: item["published_at"], reverse=True):
+        # Normalized title keys remove exact and punctuation-only duplicates.
         key = re.sub(r"\W+", "", article["title"].lower())[:80]
         if key not in seen:
             seen.add(key)
             unique.append(article)
 
+    # Limit the published edition to a manageable top 80 stories.
     curated = unique[:80]
     summarized_articles = 0
     failed_summary_batches = 0
     if OPENAI_API_KEY:
+        # Rewrite source excerpts first so both cards and filters use clear summaries.
         summarized_articles, failed_summary_batches = create_ai_article_summaries(curated)
         if failed_summary_batches:
             errors.append(f"OpenAI article summaries: {failed_summary_batches} batch failures")
@@ -453,6 +485,7 @@ def refresh_news() -> dict:
     briefing_generated_by = "fallback"
     if OPENAI_API_KEY:
         try:
+            # OpenAI supplies editorial selection; fallback content remains available.
             ai_briefing_items = create_ai_briefing(curated)
             if ai_briefing_items:
                 briefing_items = ai_briefing_items
@@ -484,14 +517,17 @@ def refresh_news() -> dict:
 
 
 def load_news(force: bool = False) -> dict:
+    """Return fresh or cached news, falling back to stale data after an outage."""
     if not force and CACHE_FILE.exists():
         age = time.time() - CACHE_FILE.stat().st_mtime
         if age < REFRESH_SECONDS:
+            # Avoid unnecessary network/API calls while the cache is still fresh.
             return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
     fresh = refresh_news()
     if fresh["articles"]:
         return fresh
     if CACHE_FILE.exists():
+        # Availability is preferable to a blank page during temporary outages.
         stale = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
         stale["stale"] = True
         stale["errors"] = fresh["errors"]
@@ -500,10 +536,14 @@ def load_news(force: bool = False) -> dict:
 
 
 class NewsHandler(SimpleHTTPRequestHandler):
+    """Serve the frontend plus local development API and health endpoints."""
+
     def __init__(self, *args, **kwargs):
+        """Configure the standard HTTP handler to serve files from public/."""
         super().__init__(*args, directory=str(PUBLIC_DIR), **kwargs)
 
     def do_GET(self):
+        """Route API and health requests, then delegate static files normally."""
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/news":
             query = urllib.parse.parse_qs(parsed.query)
@@ -527,10 +567,13 @@ class NewsHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def log_message(self, message, *args):
+        """Format local server access logs with a recognizable prefix."""
         print(f"[web] {message % args}")
 
 
 def serve(port: int) -> None:
+    """Warm the news cache and run the threaded local development server."""
+    # Warm in the background so the HTTP server can start immediately.
     threading.Thread(target=load_news, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", port), NewsHandler)
     print(f"Pulse is live at http://localhost:{port}")

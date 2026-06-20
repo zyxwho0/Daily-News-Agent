@@ -1,12 +1,17 @@
 const state = { data: null, category: "All", topic: null, visible: 10 };
 
 const $ = (selector) => document.querySelector(selector);
+
+// Escape publisher-controlled text before inserting it into HTML templates.
 const escapeHtml = (value = "") => {
   const node = document.createElement("span");
   node.textContent = value;
   return node.innerHTML;
 };
 
+/**
+ * Convert a publication timestamp into a compact reader-friendly age.
+ */
 function relativeTime(date) {
   const seconds = Math.max(0, (Date.now() - new Date(date)) / 1000);
   if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))}m ago`;
@@ -14,7 +19,11 @@ function relativeTime(date) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+/**
+ * Format the edition refresh time in the site's Eastern time zone.
+ */
 function easternRefreshTime(date) {
+  // The explicit IANA zone handles EST/EDT daylight-saving changes automatically.
   return new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     hour: "numeric",
@@ -23,16 +32,23 @@ function easternRefreshTime(date) {
   }).format(new Date(date));
 }
 
+/**
+ * Build the reusable category, publisher, and age line for a story.
+ */
 function meta(article) {
   return `<div class="story-meta"><span class="category">${escapeHtml(article.category)}</span><span>${escapeHtml(article.source)}</span><span>${relativeTime(article.published_at)}</span></div>`;
 }
 
+/**
+ * Render the first three matching stories as one lead and two side features.
+ */
 function renderLead(articles) {
   const [lead, second, third] = articles;
   if (!lead) {
     $("#leadGrid").innerHTML = `<div class="error-state">No stories match this view.</div>`;
     return;
   }
+  // Broken publisher images remove themselves instead of showing an error icon.
   const image = lead.image
     ? `<img src="${escapeHtml(lead.image)}" alt="" loading="eager" onerror="this.remove()">`
     : "";
@@ -54,9 +70,13 @@ function renderLead(articles) {
     <div class="secondary-stack">${side}</div>`;
 }
 
+/**
+ * Render the remaining visible stories and update the pagination control.
+ */
 function renderRows(articles) {
   const list = $("#storyList");
   list.innerHTML = "";
+  // The first three articles already appear in the feature grid.
   articles.slice(3, state.visible).forEach((article, index) => {
     const row = $("#storyRowTemplate").content.cloneNode(true);
     row.querySelector(".story-number").textContent = String(index + 4).padStart(2, "0");
@@ -78,15 +98,22 @@ function renderRows(articles) {
     : `No more stories <span>✓</span>`;
 }
 
+/**
+ * Apply the currently selected category and topic filters to all articles.
+ */
 function filteredArticles() {
   return state.data.articles.filter(article => {
     const categoryMatches = state.category === "All" || article.category === state.category;
+    // Topic matching searches both the headline and generated/source summary.
     const text = `${article.title} ${article.summary}`.toLowerCase();
     const topicMatches = !state.topic || text.includes(state.topic.toLowerCase());
     return categoryMatches && topicMatches;
   });
 }
 
+/**
+ * Refresh the feature grid, story list, and active-topic indicator together.
+ */
 function renderStories() {
   const articles = filteredArticles();
   const activeTopic = $("#activeTopic");
@@ -96,6 +123,9 @@ function renderStories() {
   renderRows(articles);
 }
 
+/**
+ * Rebuild the category filter controls from categories in the current edition.
+ */
 function renderFilters() {
   const categories = ["All", ...new Set(state.data.articles.map(item => item.category))];
   $("#filters").innerHTML = categories.map(category =>
@@ -103,6 +133,9 @@ function renderFilters() {
   ).join("");
 }
 
+/**
+ * Draw the interactive topic donut and its color-coded filter legend.
+ */
 function renderTopics() {
   const topics = state.data.topics.length ? state.data.topics : [
     { name: "World", count: 1 },
@@ -110,6 +143,7 @@ function renderTopics() {
     { name: "Technology", count: 1 }
   ];
   const colors = ["#173d2a", "#547a49", "#93a94b", "#c2d45b", "#78927c", "#a8b7a8", "#56665d", "#d8dfc0"];
+  // Counts become angular proportions in the CSS conic gradient.
   const total = topics.reduce((sum, topic) => sum + (Number(topic.count) || 1), 0);
   let cursor = 0;
   const segments = topics.map((topic, index) => {
@@ -121,6 +155,7 @@ function renderTopics() {
   const centerLabel = activeTopic
     ? `<strong>${escapeHtml(activeTopic.name)}</strong><span>${activeTopic.count} mentions</span>`
     : `<strong>${total}</strong><span>topic mentions</span>`;
+  // Legend rows provide larger, accessible click targets than donut slices alone.
   const legend = topics.map((topic, index) => {
     const active = state.topic === topic.name;
     return `
@@ -136,6 +171,7 @@ function renderTopics() {
       <div class="topic-donut" style="--donut:${segments.join(",")}">
         <div class="donut-center">${centerLabel}</div>
         ${topics.map((topic, index) => {
+          // Place an invisible button near the midpoint of each visual slice.
           const midpoint = topics.slice(0, index).reduce(
             (sum, item) => sum + ((Number(item.count) || 1) / total) * 360, 0
           ) + (((Number(topic.count) || 1) / total) * 180);
@@ -149,12 +185,16 @@ function renderTopics() {
     <div class="topic-legend">${legend}</div>`;
 }
 
+/**
+ * Populate the complete page from a news snapshot returned by the backend.
+ */
 function render(data) {
   state.data = data;
   const generated = new Date(data.generated_at);
   $("#todayLabel").textContent = generated.toLocaleDateString(undefined, {
     weekday: "long", month: "long", day: "numeric"
   });
+  // Older snapshots with only a paragraph remain backward compatible.
   const briefingItems = data.briefing_items?.length
     ? data.briefing_items
     : [{ headline: "Today’s briefing", summary: data.briefing }];
@@ -176,11 +216,15 @@ function render(data) {
   renderStories();
 }
 
+/**
+ * Fetch the latest news snapshot, then render it or show a friendly error.
+ */
 async function loadNews(force = false) {
   const button = $("#refreshButton");
   button.classList.add("loading");
   button.disabled = true;
   try {
+    // Local development uses the Python API; GitHub Pages reads static JSON.
     const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const endpoint = isLocal
       ? `/api/news${force ? "?refresh=1" : ""}`
@@ -198,11 +242,14 @@ async function loadNews(force = false) {
 }
 
 $("#refreshButton").addEventListener("click", () => loadNews(true));
+
 $("#loadMore").addEventListener("click", () => {
   state.visible += 10;
   renderRows(filteredArticles());
 });
+
 $("#filters").addEventListener("click", event => {
+  // Event delegation continues working after filter buttons are re-rendered.
   const button = event.target.closest(".filter");
   if (!button) return;
   state.category = button.dataset.category;
@@ -212,7 +259,9 @@ $("#filters").addEventListener("click", event => {
   renderTopics();
   renderStories();
 });
+
 $("#topicChart").addEventListener("click", event => {
+  // Both donut hit targets and legend rows expose the same data-topic attribute.
   const button = event.target.closest("[data-topic]");
   if (!button) return;
   state.topic = state.topic === button.dataset.topic ? null : button.dataset.topic;
@@ -223,10 +272,12 @@ $("#topicChart").addEventListener("click", event => {
   renderStories();
   $("#stories").scrollIntoView({ behavior: "smooth", block: "start" });
 });
+
 $("#activeTopic").addEventListener("click", () => {
   state.topic = null;
   state.visible = 10;
   renderTopics();
   renderStories();
 });
+
 loadNews();
