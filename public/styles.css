@@ -37,9 +37,11 @@ button { font: inherit; }
 .top-nav { display: flex; gap: 34px; }
 .top-nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
 .top-nav a:hover { color: var(--ink); }
-.refresh-button { justify-self: end; display: flex; align-items: center; gap: 8px; padding: 10px 15px; border: 1px solid var(--line); border-radius: 99px; background: transparent; cursor: pointer; }
+.refresh-control { justify-self: end; display: grid; justify-items: center; gap: 4px; }
+.refresh-button { display: flex; align-items: center; gap: 8px; padding: 8px 15px; border: 1px solid var(--line); border-radius: 99px; background: transparent; cursor: pointer; }
 .refresh-button svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 .refresh-button.loading svg { animation: spin .8s linear infinite; }
+.refresh-time { color: var(--muted); font: 400 8px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 
 main { width: min(1160px, calc(100% - 48px)); margin: auto; }
 .hero { padding: clamp(64px, 9vw, 130px) 0 96px; }

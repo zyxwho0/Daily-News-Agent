@@ -14,6 +14,15 @@ function relativeTime(date) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+function easternRefreshTime(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short"
+  }).format(new Date(date));
+}
+
 function meta(article) {
   return `<div class="story-meta"><span class="category">${escapeHtml(article.category)}</span><span>${escapeHtml(article.source)}</span><span>${relativeTime(article.published_at)}</span></div>`;
 }
@@ -157,6 +166,7 @@ function render(data) {
   `).join("");
   $("#storyCount").textContent = `${data.articles.length} stories reviewed`;
   $("#updatedAt").textContent = `${data.stale ? "Cached" : "Updated"} ${relativeTime(data.generated_at)}`;
+  $("#headerUpdatedAt").textContent = `Last refreshed at ${easternRefreshTime(data.generated_at)}`;
   const summaryNote = data.articles_summarized
     ? ` AI summaries generated for ${data.articles_summarized} stories.`
     : "";
