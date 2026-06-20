@@ -55,12 +55,12 @@ The workflow in `.github/workflows/pages.yml` collects fresh news and deploys
 - whenever it is started manually
 
 In the repository's **Settings → Pages**, select **GitHub Actions** as the
-publishing source and set the custom domain to `news.yuxianzhang.com`.
+publishing source and enter your custom domain.
 
-At the DNS provider for `yuxianzhang.com`, create:
+For a custom subdomain, create this record with your DNS provider:
 
 | Type | Name | Value |
 |---|---|---|
-| CNAME | `news` | `zyxwho0.github.io` |
+| CNAME | `<subdomain>` | `<username>.github.io` |
 
 After DNS validation completes, enable **Enforce HTTPS** in the Pages settings.
