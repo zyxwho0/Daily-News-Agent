@@ -3,7 +3,7 @@
 YZ News combines trusted RSS feeds with Brave News Search, deduplicates and
 categorizes the coverage, and uses OpenAI to write the daily briefing displayed
 at the top of the site and concise summaries beneath every story title.
-Each edition publishes 30 curated stories and initially displays 10.
+Each edition publishes 80 curated stories and initially displays 10.
 
 ## Run it
 
