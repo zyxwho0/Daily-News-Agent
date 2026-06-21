@@ -1,4 +1,4 @@
-const state = { data: null, category: "All", topic: null, visible: 10 };
+const state = { data: null, category: "All", topic: null, visible: 10, refreshTimer: null };
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -30,6 +30,19 @@ function easternRefreshTime(date) {
     minute: "2-digit",
     timeZoneName: "short"
   }).format(new Date(date));
+}
+
+/**
+ * Show refresh progress or results, then restore the default button label.
+ */
+function setRefreshStatus(message, resetAfter = 0) {
+  clearTimeout(state.refreshTimer);
+  $("#refreshLabel").textContent = message;
+  if (resetAfter) {
+    state.refreshTimer = setTimeout(() => {
+      $("#refreshLabel").textContent = "Refresh";
+    }, resetAfter);
+  }
 }
 
 /**
@@ -223,6 +236,7 @@ async function loadNews(force = false) {
   const button = $("#refreshButton");
   button.classList.add("loading");
   button.disabled = true;
+  setRefreshStatus("Checking for fresh news…");
   try {
     // Local development uses the Python API; GitHub Pages reads static JSON.
     const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
@@ -233,8 +247,10 @@ async function loadNews(force = false) {
     if (!response.ok) throw new Error("News service unavailable");
     const data = await response.json();
     render(data);
+    setRefreshStatus("You’re up to date ✓", 4000);
   } catch (error) {
     $("#leadGrid").innerHTML = `<div class="error-state"><div><strong>We couldn’t reach the newsroom.</strong><br>Check your connection, then try refresh.</div></div>`;
+    setRefreshStatus("Couldn’t refresh, try again", 5000);
   } finally {
     button.classList.remove("loading");
     button.disabled = false;

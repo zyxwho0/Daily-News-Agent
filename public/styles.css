@@ -38,9 +38,10 @@ button { font: inherit; }
 .top-nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
 .top-nav a:hover { color: var(--ink); }
 .refresh-control { justify-self: end; display: grid; justify-items: center; gap: 4px; }
-.refresh-button { display: flex; align-items: center; gap: 8px; padding: 8px 15px; border: 1px solid var(--line); border-radius: 99px; background: transparent; cursor: pointer; }
+.refresh-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 104px; max-width: 230px; padding: 8px 15px; border: 1px solid var(--line); border-radius: 99px; background: transparent; cursor: pointer; transition: min-width .2s ease; }
 .refresh-button svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 .refresh-button.loading svg { animation: spin .8s linear infinite; }
+.refresh-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .refresh-time { color: var(--muted); font: 400 8px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 
 main { width: min(1160px, calc(100% - 48px)); margin: auto; }
