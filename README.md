@@ -37,11 +37,24 @@ When either API key is unavailable or an API request fails, the agent continues
 with RSS and a deterministic fallback briefing. For GitHub Pages, store the two
 keys as repository Actions secrets named `BRAVE_API_KEY` and `OPENAI_API_KEY`.
 
-## Endpoints
+## API
+
+Local development server:
 
 - `GET /api/news` — cached daily briefing and stories
 - `GET /api/news?refresh=1` — force a fresh collection
 - `GET /health` — service health check
+
+The deployed GitHub Pages site also publishes a free, read-only static API:
+
+- `GET /api/v1/index.json` — API metadata and endpoint discovery
+- `GET /api/v1/news.json` — current curated edition
+- `GET /api/v1/briefing.json` — current Top 5 briefing
+- `GET /api/v1/topics.json` — current trending topics
+- `GET /api/` — browser-friendly API documentation
+
+Static endpoints are regenerated with each deployment. They do not support
+query parameters, authentication, or server-side filtering.
 
 For a real daily scheduled refresh, run `python3 app.py --refresh` from cron, a systemd timer, GitHub Actions, or your hosting provider’s scheduler. The running service also refreshes automatically when its cache expires.
 

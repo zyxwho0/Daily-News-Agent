@@ -3,3 +3,4 @@ __pycache__/
 .DS_Store
 data/news.json
 public/data/news.json
+public/api/v1/*.json

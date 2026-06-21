@@ -26,6 +26,7 @@ DATA_DIR = ROOT / "data"
 CACHE_FILE = DATA_DIR / "news.json"
 PUBLIC_DIR = ROOT / "public"
 PUBLIC_DATA_FILE = PUBLIC_DIR / "data" / "news.json"
+PUBLIC_API_DIR = PUBLIC_DIR / "api" / "v1"
 REFRESH_SECONDS = int(os.getenv("NEWS_REFRESH_SECONDS", "1800"))
 BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -443,6 +444,44 @@ def extract_topics(articles: list[dict]) -> list[dict]:
     ]
 
 
+def write_static_api(payload: dict) -> None:
+    """Write versioned, read-only JSON endpoints for the GitHub Pages API."""
+    PUBLIC_API_DIR.mkdir(parents=True, exist_ok=True)
+    generated_at = payload["generated_at"]
+    endpoints = {
+        "index.json": {
+            "name": "YZ News Static API",
+            "version": "v1",
+            "generated_at": generated_at,
+            "endpoints": {
+                "news": "/api/v1/news.json",
+                "briefing": "/api/v1/briefing.json",
+                "topics": "/api/v1/topics.json",
+            },
+        },
+        "news.json": {
+            "generated_at": generated_at,
+            "count": len(payload["articles"]),
+            "articles": payload["articles"],
+        },
+        "briefing.json": {
+            "generated_at": generated_at,
+            "generated_by": payload["briefing_generated_by"],
+            "items": payload["briefing_items"],
+        },
+        "topics.json": {
+            "generated_at": generated_at,
+            "count": len(payload["topics"]),
+            "topics": payload["topics"],
+        },
+    }
+    for filename, data in endpoints.items():
+        (PUBLIC_API_DIR / filename).write_text(
+            json.dumps(data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+
 def refresh_news() -> dict:
     """Run the full agent pipeline and write a deployable daily-news snapshot."""
     all_articles: list[dict] = []
@@ -513,6 +552,7 @@ def refresh_news() -> dict:
         serialized = json.dumps(payload, indent=2)
         CACHE_FILE.write_text(serialized, encoding="utf-8")
         PUBLIC_DATA_FILE.write_text(serialized, encoding="utf-8")
+        write_static_api(payload)
     return payload
 
 
