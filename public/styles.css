@@ -116,9 +116,10 @@ h2 { margin: 9px 0 0; font: 500 clamp(36px, 5vw, 62px)/1 Newsreader, serif; lett
 .topic-count { color: var(--muted); font: 400 9px "DM Mono", monospace; text-align: right; }
 .topic-legend-row.active .topic-name { color: #365e43; }
 .about-section { display: grid; grid-template-columns: .8fr 1.2fr; align-items: start; gap: 80px; padding: 100px 0; border-top: 1px solid var(--line); }
-.about-copy { max-width: 650px; padding-top: 22px; }
+.about-heading { font-size: clamp(30px, 3.6vw, 45px); }
+.about-copy { max-width: 650px; }
+.about-copy .about-heading { margin-bottom: 24px; }
 .about-copy p { margin: 0; color: var(--muted); font: 500 clamp(21px, 2.6vw, 32px)/1.4 Newsreader, serif; letter-spacing: -.02em; }
-.about-copy p + p { margin-top: 25px; color: var(--ink); }
 footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; padding: 38px clamp(24px, 5vw, 80px); color: #d8dfda; background: var(--green); font-size: 11px; }
 footer > p { margin: 0; }
 .source-note { justify-self: end; color: #8fa095; }
