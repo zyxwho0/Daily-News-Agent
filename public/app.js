@@ -234,6 +234,7 @@ function render(data) {
  */
 async function loadNews(force = false) {
   const button = $("#refreshButton");
+  const startedAt = Date.now();
   button.classList.add("loading");
   button.disabled = true;
   setRefreshStatus("Checking for fresh news…");
@@ -246,6 +247,11 @@ async function loadNews(force = false) {
     const response = await fetch(endpoint, { cache: force ? "no-store" : "default" });
     if (!response.ok) throw new Error("News service unavailable");
     const data = await response.json();
+    // Keep manual-refresh feedback visible long enough for readers to notice.
+    if (force) {
+      const remaining = Math.max(0, 1000 - (Date.now() - startedAt));
+      await new Promise(resolve => setTimeout(resolve, remaining));
+    }
     render(data);
     setRefreshStatus("You’re up to date ✓", 4000);
   } catch (error) {
