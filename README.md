@@ -58,10 +58,9 @@ query parameters, authentication, or server-side filtering.
 
 For a real daily scheduled refresh, run `python3 app.py --refresh` from cron, a systemd timer, GitHub Actions, or your hosting provider’s scheduler. The running service also refreshes automatically when its cache expires.
 
-## GitHub Pages
+## Refresh Schedule
 
-The workflow in `.github/workflows/pages.yml` collects fresh news and deploys
-`public/` to GitHub Pages:
+The workflow collects and refresh news:
 
 - after every push to `master`
 - every day at 7:15 AM EDT / 6:15 AM EST (11:15 UTC)
