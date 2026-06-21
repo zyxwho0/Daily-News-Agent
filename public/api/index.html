@@ -26,6 +26,8 @@
     .code-function { color:#dcdcaa; }
     .code-string { color:#ce9178; }
     .code-property { color:#9cdcfe; }
+    .code-comment { color:#6a9955; }
+    .code-type { color:#4ec9b0; }
     footer { padding-top:30px; color:var(--muted); font-size:12px; }
     @media (max-width:560px) { .endpoint { grid-template-columns:1fr; } }
   </style>
@@ -60,11 +62,24 @@
 
     <section>
       <h2>Example</h2>
-      <pre><code><span class="code-keyword">const</span> response = <span class="code-keyword">await</span> <span class="code-function">fetch</span>(
-  <span class="code-string">"https://news.yuxianzhang.com/api/v1/news.json"</span>
-);
-<span class="code-keyword">const</span> edition = <span class="code-keyword">await</span> response.<span class="code-function">json</span>();
-console.<span class="code-function">log</span>(edition.<span class="code-property">articles</span>);</code></pre>
+      <pre><code><span class="code-keyword">async function</span> <span class="code-function">fetchNews</span>() {
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">const</span> response = <span class="code-keyword">await</span> <span class="code-function">fetch</span>(<span class="code-string">"https://news.yuxianzhang.com/api/v1/news.json"</span>);
+
+    <span class="code-comment">// Check if the HTTP status code is 200–299</span>
+    <span class="code-keyword">if</span> (!response.<span class="code-property">ok</span>) {
+      <span class="code-keyword">throw new</span> <span class="code-type">Error</span>(<span class="code-string">`HTTP error! Status: ${response.status}`</span>);
+    }
+
+    <span class="code-keyword">const</span> edition = <span class="code-keyword">await</span> response.<span class="code-function">json</span>();
+    console.<span class="code-function">log</span>(edition.<span class="code-property">articles</span>);
+  } <span class="code-keyword">catch</span> (error) {
+    console.<span class="code-function">error</span>(<span class="code-string">"Failed to fetch news:"</span>, error);
+  }
+}
+
+<span class="code-comment">// Call the function</span>
+<span class="code-function">fetchNews</span>();</code></pre>
     </section>
 
     <section>
