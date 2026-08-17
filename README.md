@@ -29,7 +29,7 @@ python3 app.py --refresh
 - `NEWS_REFRESH_SECONDS`: cache lifetime (default `1800`, or 30 minutes)
 - `BRAVE_API_KEY`: optional Brave Search API key for broader news discovery
 - `OPENAI_API_KEY`: optional OpenAI API key for the generated daily briefing
-- `OPENAI_MODEL`: optional model override (default `gpt-5.4-mini`)
+- `OPENAI_MODEL`: optional model override (default `gpt-5.6-luna`)
 
 Feed sources are configured in `FEEDS` near the top of `app.py`. The service keeps the last successful response in `data/news.json`, so the dashboard can continue using its cache during a temporary feed outage.
 
